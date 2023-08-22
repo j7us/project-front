@@ -1,11 +1,286 @@
 <html>
 <head>
     <title>RPG</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-4bw+/aepP/YC94hEpVNVgiZdgIC5+VKNBQNGCHeKRQN+PtmoHDEXuppvnDJzQIu9" crossorigin="anonymous">
     <script src=https://code.jquery.com/jquery-3.6.0.min.js></script>
-    <link href="/css/my.css" rel="stylesheet">
 </head>
 <body>
-<h1>RPG admin panel</h1>
+<script>
+    let countPlayers;
+    let currentPage = 0;
+    let playerPerPage = 3;
+    let drop_down_Race = " <select name=\"Race\" id=\"raceE\">\n" +
+        "    <option  value=\"HUMAN\" >HUMAN</option>\n" +
+        "    <option  value=\"DWARF\" >DWARF</option>\n" +
+        "    <option  value=\"ELF\">ELF</option>\n" +
+        "    <option  value=\"GIANT\">GIANT</option>\n" +
+        "    <option  value=\"ORC\">ORC</option>\n" +
+        "    <option  value=\"TROLL\">TROLL</option>\n" +
+        "    <option  value=\"HOBBIT\">HOBBIT</option>\n" +
+        "</select>";
+    let dro_down_Profession = "<select name=\"Prof\" id=\"profE\">\n" +
+        "    <option  value=\"WARRIOR\" >WARRIOR</option>\n" +
+        "    <option  value=\"ROGUE\" >ROGUE</option>\n" +
+        "    <option  value=\"SORCERER\">SORCERER</option>\n" +
+        "    <option  value=\"CLERIC\">CLERIC</option>\n" +
+        "    <option  value=\"PALADIN\">PALADIN</option>\n" +
+        "    <option  value=\"NAZGUL\">NAZGUL</option>\n" +
+        "    <option  value=\"WARLOCK\">WARLOCK</option>\n" +
+        "    <option  value=\"DRUID\">DRUID</option>\n" +
+        "</select>";
+    let dro_down_Banned = "<select name=\"Banned\" id=\"bannedE\">\n" +
+        "    <option  value=\"true\" >true</option>\n" +
+        "    <option  value=\"false\" >false</option>\n" +
+        "</select>";
 
+
+
+    function change(){
+        $.ajax({
+            type: "GET",
+            url: "/rest/players/count",
+            async: false,
+            success: function (count) {
+                countPlayers = count;
+            }
+        })
+        let pageCount = Math.ceil(countPlayers/playerPerPage);
+        if(currentPage>pageCount-1){
+            currentPage = pageCount-1;
+        }
+    $.ajax({
+        type: "GET",
+        url: "/rest/players",
+        data: {
+            "pageNumber" : currentPage,
+            "pageSize" : playerPerPage
+        },
+        success: function(array){
+            array.forEach((player) => {
+                $("#test_Table tbody").append("<tr> <td id='player_id'>" + player.id + "</td> <td class='conten' contenteditable='false' id='player_name'>" + player.name + "</td> " +
+                    "<td class='conten' contenteditable='false' id='player_title'>" + player.title + "</td> <td class='race_Edit' id='player_race'>" + player.race + "</td> <td class='prof_Edit' id='player_profession'>" + player.profession + "</td> " +
+                    "<td id='player_level'>" + player.level + "</td> " + "<td id='player_birthday'>" + player.birthday + "</td> " + "<td class = 'banned_Edit' id='player_banned'>" + player.banned + "</td> <td><button class='btnEdit'><img src='img/edit.png' alt='Edit' height='40' width='40'></button> </td>" +
+                    "<td><button class='btnDelete'><img src='img/delete.png' alt='Delete' height='40' width='40'></button> </td></tr>")
+            });
+            paging(pageCount);
+            $(document).ready(function (){
+                $("#page" + currentPage ).addClass("active");
+            })
+        }
+    });
+    }
+
+    $(document).ready(function (){
+        $("#test_Table").on("click",".btnEdit", function (){
+            let currentRow = $(this).closest("tr");
+            $(this).closest("td").html('<button class = "btnSave"><img src="img/save.png" alt="Save" height="40" width="40"></button>');
+            currentRow.find(".btnDelete").hide();
+            currentRow.find(".conten").each(function (){
+                    $(this).attr('contenteditable', true);
+                    let tx ="<p class='border border-dark'>" + $(this).text() + "</p>";
+                    $(this).html(tx);
+            })
+            let raceEdidor = currentRow.find(".race_Edit");
+            let selected_Race = raceEdidor.text();
+            raceEdidor.html(drop_down_Race);
+            raceEdidor.find("#raceE").val(selected_Race);
+            let profEditor = currentRow.find(".prof_Edit");
+            let selected_Prof = profEditor.text();
+            profEditor.html(dro_down_Profession);
+            profEditor.find("#profE").val(selected_Prof);
+            let bannedEditor = currentRow.find(".banned_Edit");
+            let selected_Banned = bannedEditor.text();
+            bannedEditor.html(dro_down_Banned);
+            bannedEditor.find("#bannedE").val(selected_Banned);
+        })
+
+            $("#test_Table").on("click",".btnSave", function (){
+                let currentRow = $(this).closest("tr");
+                $(this).closest("td").html("<button class='btnEdit'><img src='img/edit.png' alt='Edit' height='40' width='40'></button>");
+                currentRow.find(".btnDelete").show();
+                currentRow.find(".conten").each(function (){
+                    $(this).attr('contenteditable', false);
+                    let tx = $(this).find("p").text();
+                    $(this).html(tx);
+                })
+                let r = currentRow.find(".race_Edit").find("#raceE").val();
+                currentRow.find(".race_Edit").html(r);
+                let p = currentRow.find(".prof_Edit").find("#profE").val();
+                currentRow.find(".prof_Edit").html(p);
+                let b = currentRow.find(".banned_Edit").find("#bannedE").val();
+                currentRow.find(".banned_Edit").html(b);
+                save_Rep(currentRow);
+            })
+
+            function save_Rep(currentRow){
+                $.ajax({
+                    type: "POST",
+                    url: "/rest/players/" + currentRow.find("#player_id").text(),
+                    contentType: "application/json; charset=utf-8",
+                    dataType: "json",
+                    data: JSON.stringify({
+                        id: currentRow.find("#player_id").text(),
+                        name: currentRow.find("#player_name").text(),
+                        title: currentRow.find("#player_title").text(),
+                        race: currentRow.find("#player_race").text(),
+                        profession: currentRow.find("#player_profession").text(),
+                        birthday: currentRow.find("#player_birthday").text(),
+                        banned: currentRow.find("#player_banned").text(),
+                        level: currentRow.find("#player_level").text()
+                    }),
+                    success: function (data, textStatus, xhr){
+                        if (xhr.status==200){
+                            alert("Save");
+                        }
+                    }
+                })
+            }
+
+        $("#test_Table").on("click",".btnDelete",function (){
+            let currentRow = $(this).closest("tr");
+            let currentId = currentRow.find("td:eq(0)").text();
+            $.ajax({
+                type: "DELETE",
+                url: "/rest/players/" + currentId,
+                success: function (data, textStatus, xhr){
+                    if (xhr.status==200){
+                        $("#test_Table tbody").empty();
+                        $("#items").remove();
+                        change();
+                    }
+                }
+            })
+        })
+
+
+        $('#count').change(function (){
+            playerPerPage = $(this).val();
+            $("#test_Table tbody").empty();
+            $("#items").remove();
+            change();
+        })
+
+        $(document).on('click', '.page-link', function (){
+            currentPage = $(this).text() - 1;
+            $("#test_Table tbody").empty();
+            $("#items").remove();
+            change();
+        })
+    })
+
+    function getParam(form){
+       $(document).ready(function (){
+           let name = form.elements [0].value;
+           let title = form.elements [1].value;
+           let race = form.elements [2].value;
+           let profession = form.elements [3].value;
+           let level = form.elements [4].value;
+           let birthday = form.elements [5].value;
+           let banned = form.elements [6].value;
+
+           $.ajax({
+               type: "POST",
+               url: "/rest/players",
+               contentType: "application/json; charset=utf-8",
+               dataType: "json",
+               data: JSON.stringify({
+                   name: name,
+                   title: title,
+                   race: race,
+                   profession: profession,
+                   birthday: new Date(birthday).getTime(),
+                   banned: banned,
+                   level: level
+               }),
+               success: function (data, textStatus, xhr){
+                   if (xhr.status==200){
+                       alert("A new player has been created");
+                       $("#test_Table tbody").empty();
+                       $("#items").remove();
+                       change();
+                   }
+               }
+           })
+       })
+    }
+
+
+
+    function paging(pageCount){
+        $(document).ready (function () {
+            $('#test_Table').after ('<div id="items"></div>');
+            $('#items').append(' <ul id="pagination" class="pagination"></ul>')
+            for (i = 0;i < pageCount;i++) {
+                let t = i+1;
+                $('#pagination').append ('<li class="page-item" ><a class="page-link" href="#">'+(i+1)+'</a></li> ');
+            }
+            let iid = 0;
+            $(".page-item").each(function (){
+                $(this).attr("id", "page" + iid);
+                iid++;
+            })
+        });
+    }
+
+    change();
+
+</script>
+<h1>Test</h1>
+<label for="count">Select a count:</label>
+<select name="count" id="count">
+    <option  value="3" selected>3</option>
+    <option  value="5" >5</option>
+    <option  value="10">10</option>
+    <option  value="20">20</option>
+</select>
+<br>
+<br>
+<table id="test_Table" class = "table-bordered">
+    <thead>
+    <tr> <th>#</th> <th>Name</th> <th>Title</th> <th>Race</th>
+    <th>Profession</th> <th>Level</th> <th>Birthday</th> <th>Banned</th>
+    <th>Edit</th> <th>Delete</th></tr>
+    </thead>
+    <tbody></tbody>
+</table>
+<hr>
+<h1>Create new account</h1>
+<form onsubmit="getParam(this); return false">
+    <label for="PName">Name:</label>
+    <input type="text"  id="PName" name="name" minlength="1" maxlength="12"><br>
+    <label for="PTitle">Title:</label>
+    <input type="text" id="PTitle" name="title" minlength="1" maxlength="30"><br>
+    <label for="Prace">Race:</label>
+    <select name="race" id="Prace">
+        <option  value="HUMAN">HUMAN</option>
+        <option  value="DWARF">DWARF</option>
+        <option  value="ELF">ELF</option>
+        <option  value="GIANT">GIANT</option>
+        <option  value="ORC">ORC</option>
+        <option  value="TROLL">TROLL</option>
+        <option  value="HOBBIT">HOBBIT</option>
+        </select><br>
+    <label for="Pprof">Profession:</label>
+    <select name="profession" id="Pprof">
+        <option  value="WARRIOR" >WARRIOR</option>
+        <option  value="ROGUE" >ROGUE</option>
+        <option  value="SORCERER">SORCERER</option>
+        <option  value="CLERIC">CLERIC</option>
+        <option  value="PALADIN">PALADIN</option>
+        <option  value="NAZGUL">NAZGUL</option>
+        <option  value="WARLOCK">WARLOCK</option>
+        <option  value="DRUID">DRUID</option>
+        </select><br>
+    <label for="Plevel">Level(0-100):</label>
+    <input type="number" id="Plevel" name="level" min="0" max="100"><br>
+    <label for="PBirthday">Birthday:</label>
+    <input type="date" id="PBirthday" name="birthday"><br>
+    <label for="Pbanned">Banned:</label>
+    <select name="banned" id="Pbanned">
+        <option  value="true" >true</option>
+        <option  value="false" >false</option>
+        </select><br>
+    <input type="submit" value="Save">
+</form>
 </body>
 </html>
